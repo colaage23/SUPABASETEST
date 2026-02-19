@@ -10,6 +10,7 @@ import { FAB } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import LoginModal, { LoginModalRef } from '../../Components/Modal/LoginModal';
 import { useAuth } from '../../Login/hooks/useAuth';
+import { signOutApi } from '../../Login/api/api';
 
 interface FABProps {
   isExpanded: boolean;
@@ -25,14 +26,14 @@ const FABBtn = ({ isExpanded, setIsExpanded }: FABProps) => {
   };
 
   const handleLogoutPress = async () => {
+    signOutApi();
     setIsExpanded(false);
+
 
   };
 
   const { user } = useAuth();
   const isLogin = !!user;
-
-  console.log(isLogin)
 
   return (
     <>
@@ -112,6 +113,7 @@ const FABBtn = ({ isExpanded, setIsExpanded }: FABProps) => {
                 borderRadius: 50,
               }}
               onPress={() => {
+                setIsExpanded(false)
                 navigation.navigate('HomeStacks', { screen: 'PostWrite' })
               }}
             />

@@ -6,6 +6,7 @@ import styled from 'styled-components/native';
 import theme from '../Components/theme';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { signUpApi } from './api/api';
 
 const SignUp: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -50,28 +51,28 @@ const SignUp: React.FC = () => {
     setIsLoading(true);
 
     try {
+      const { data, error } = await signUpApi(email, pw)
 
+      if (error) throw error
 
-      Alert.alert('회원가입 완료', '회원가입이 성공적으로 완료되었습니다.', [
+      Alert.alert('회원가입 완료', '가입하신 이메일 주소로 인증메일을 발송했습니다.', [
         {
           text: '확인',
-          onPress: () => {
-            // 회원가입 성공 후 처리 (예: 로그인 화면으로 이동)
-            navigation.goBack();
-          },
+          onPress: () => navigation.goBack(),
         },
-      ]);
+      ])
 
-      setEmail('');
-      setPw('');
-      setPwcheck('');
+      setEmail('')
+      setPw('')
+      setPwcheck('')
     } catch (error: any) {
-      console.error('회원가입 오류:', error);
+      console.error('회원가입 오류:', error)
 
-      Alert.alert('회원가입 실패');
+      Alert.alert('회원가입 실패', error.message)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
+
   };
 
   return (
@@ -148,7 +149,7 @@ const InsertView = styled.ScrollView`
 const TextInput = styled.TextInput`
   color: ${theme.colors.fontMain};
   width: 100%;
-  height: 40px;
+  height: 45px;
   background-color: #fff;
   margin-bottom: 12px;
   border-width: 1px;
@@ -160,7 +161,7 @@ const TextInput = styled.TextInput`
 
 const SignUpBtn = styled.TouchableOpacity`
   width: 100%;
-  height: 40px;
+  height: 55px;
   background-color: ${theme.colors.fontBlue};
   margin-top: 25px;
   border-radius: 8px;

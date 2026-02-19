@@ -84,7 +84,14 @@ export const Icon = styled.Image<any>`
 export const Background = styled.View`
   flex: 1;
   background-color: white;
-  padding: 15px;
+  padding: 12px;
+  gap: 15px;
+`;
+
+export const Background2 = styled.View`
+  flex: 1;
+  background-color: ${theme.colors.bgGray2};
+  padding: 12px;
   gap: 15px;
 `;
 

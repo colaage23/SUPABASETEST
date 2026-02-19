@@ -1,34 +1,77 @@
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
-import { FlatList, TouchableOpacity, Keyboard } from "react-native";
+import { Alert, FlatList, Keyboard, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import styled from "styled-components/native";
 import { Background, ContentText, Icon, RowView } from "../Components/StyledComponent";
 import theme from "../Components/theme";
+import { useAuth } from "../Login/hooks/useAuth";
+import { supabase } from "../Login/lib/supabase"; // 🔥 추가
 import { PostListItem } from "./Interface/Interface";
-import dayjs from "dayjs";
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface Comment {
     id: string;
     email: string;
     content: string;
-    createdAt: number;
+    created_at: string;
 }
 
 const PostDetail: React.FC = () => {
-    const route = useRoute<RouteProp<{ params: { item: PostListItem; id: string } }, 'params'>>();
-    const { item, id } = route.params; // id = 게시글 key
+
+    const { user } = useAuth();
+
+    const route = useRoute<RouteProp<{ params: { item: PostListItem; } }, 'params'>>();
+    const { item } = route.params;
     const navigation = useNavigation();
 
     const [comment, setComment] = useState("");
     const [commentList, setCommentList] = useState<Comment[]>([]);
 
+    // 댓글 불러오기
+    const getComments = async () => {
+        const { data, error } = await supabase
+            .from("comments")
+            .select("*")
+            .eq("post_id", item.id)
+            .order("created_at", { ascending: false });
 
+        if (error) {
+            console.log(error);
+            return;
+        }
 
-    // 댓글 저장
-    const addComment = async () => {
-
+        setCommentList(data || []);
     };
+
+    // 🔥 댓글 저장
+    const addComment = async () => {
+        if (!user) {
+            Alert.alert("로그인이 필요한 기능입니다.");
+            return;
+        }
+
+        if (!comment.trim()) return;
+
+        const { error } = await supabase.from("comments").insert({
+            post_id: item.id,
+            email: user?.email,
+            content: comment,
+        });
+
+        if (error) {
+            Alert.alert("댓글 등록 실패");
+            return;
+        }
+
+        setComment("");
+        Keyboard.dismiss();
+        getComments(); // 🔥 다시 불러오기
+    };
+
+    useEffect(() => {
+        getComments();
+    }, []);
 
     const goBack = () => {
         navigation.goBack();
@@ -42,46 +85,62 @@ const PostDetail: React.FC = () => {
                 </BackBtn>
                 <ContentText title medium>{item.title}</ContentText>
             </TopBar>
-            <SafeAreaView style={{ flex: 1, gap: 10 }}>
-                <Thumnail source={{ uri: item.thumbnail }} resizeMode="cover" />
 
-                {item.tag.length > 0 && (
-                    <RowView style={{ gap: 5 }}>
+            <SafeAreaView style={{ flex: 1 }}>
+
+                <Thumnail
+                    source={{ uri: item.thumbnail }}
+                    resizeMode="cover"
+                    onError={() => console.log("이미지 로드 실패")}
+                />
+
+                {/* 태그 */}
+                <View>
+
+                    {item.tag.length > 0 && (
                         <FlatList
                             data={item.tag}
                             renderItem={({ item: tag }) => (
-                                <Tag key={tag}>
+                                <Tag>
                                     <ContentText small blue>{tag}</ContentText>
                                 </Tag>
                             )}
-                            keyExtractor={(tag, index) => index.toString()}
+                            keyExtractor={(tag, index) => `${tag}-${index}`}
                             horizontal
-                            bounces={false}
+                            contentContainerStyle={{ gap: 5, padding: 10, paddingLeft: 0 }}
                             showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={{ gap: 5 }}
                         />
-                    </RowView>
-                )}
+                    )}
+                </View>
 
                 <ContentView>
                     <ContentText>{item.content}</ContentText>
+                    <ContentText small>
+                        {item.created_at}
+                    </ContentText>
                 </ContentView>
 
                 <Bar />
 
+                {/*  댓글 리스트 */}
+                <FlatList
+                    data={commentList}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                        <CommentListView>
+                            <RowView between>
+                                <ContentText small bold>{item.email}</ContentText>
+                                <ContentText small>
+                                    {dayjs(item.created_at).format("YY-MM-DD HH:mm")}
+                                </ContentText>
+                            </RowView>
+                            <ContentText>{item.content}</ContentText>
+                        </CommentListView>
+                    )}
+                    contentContainerStyle={{ paddingBottom: 80 }}
+                />
 
-                {commentList.map((item) => (
-                    <CommentListView>
-                        <RowView between>
-                            <ContentText small bold>{item.email}</ContentText>
-                            <ContentText small bold>{dayjs(item.createdAt).format("YY-MM-DD HH:mm")}</ContentText>
-                        </RowView>
-                        <ContentText>{item.content}</ContentText>
-                    </CommentListView>
-                ))}
-
-
-                {/* 댓글 입력창 */}
+                {/* 댓글 입력 */}
                 <CommentInputView>
                     <CommentInput
                         placeholder="댓글을 입력하세요"
@@ -93,12 +152,14 @@ const PostDetail: React.FC = () => {
                         <Icon source={require("../Image/ic_send_black.png")} />
                     </TouchableOpacity>
                 </CommentInputView>
+
             </SafeAreaView>
         </Background>
     );
 };
 
 export default PostDetail;
+
 
 const TopBar = styled.View`
   height: 30px;
@@ -118,7 +179,7 @@ const Thumnail = styled.Image`
     width: 100%;
     height: 100%;
     max-height: 300px;
-
+    border-radius: 8px;
 `
 const Tag = styled.View`
   padding: 4px 10px;

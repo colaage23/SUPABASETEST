@@ -6,6 +6,7 @@ import theme from '../Components/theme';
 import styled from 'styled-components/native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { signInApi } from './api/api';
 
 const Login: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -33,12 +34,15 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
+      const { data, error } = await signInApi(email, pw)
+
+      if (error) throw error
 
       navigation.goBack();
     } catch (error: any) {
       console.error('로그인 오류:', error);
 
-      Alert.alert('로그인 실패');
+      Alert.alert('로그인 실패', '이메일 또는 비밀번호를 확인해주세요.');
     } finally {
       setIsLoading(false);
     }
@@ -115,7 +119,7 @@ const InsertView = styled.View`
 const TextInput = styled.TextInput`
   color: ${theme.colors.fontMain};
   width: 100%;
-  height: 40px;
+  height: 45px;
   background-color: #fff;
   margin-bottom: 12px;
   border-width: 1px;
@@ -127,7 +131,7 @@ const TextInput = styled.TextInput`
 
 const LoginBtn = styled.TouchableOpacity`
   width: 100%;
-  height: 40px;
+  height: 55px;
   background-color: ${theme.colors.fontBlue};
   margin-top: 25px;
   border-radius: 8px;
@@ -138,7 +142,7 @@ const LoginBtn = styled.TouchableOpacity`
 
 const JoinBtn = styled.TouchableOpacity`
   width: 100%;
-  height: 40px;
+  height: 55px;
   background-color: ${theme.colors.barGray};
   margin-top: 8px;
   border-radius: 8px;

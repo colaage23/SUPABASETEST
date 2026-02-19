@@ -16,6 +16,10 @@ import ImageCropPicker from 'react-native-image-crop-picker';
 import ImageResizer from 'react-native-image-resizer';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '../Login/lib/supabase';
+import RNFS from 'react-native-fs';
+import { Buffer } from 'buffer';
+
 
 const PostWrite = () => {
   const navigation = useNavigation();
@@ -58,37 +62,86 @@ const PostWrite = () => {
   };
 
   const uploadImageToStorage = async (uri: string) => {
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) throw new Error('로그인 필요');
 
+    const fileExt = uri.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `${user.id}/${fileName}`;
+
+    const base64 = await RNFS.readFile(uri, 'base64');
+
+    const { data, error } = await supabase.storage
+      .from('post-images')
+      .upload(filePath, Buffer.from(base64, 'base64'), {
+        contentType: 'image/jpeg',
+      });
+
+    if (error) throw error;
+
+    const { data: publicUrl } = supabase.storage
+      .from('post-images')
+      .getPublicUrl(data.path);
+
+    return publicUrl.publicUrl;
   };
+
+
 
   const savePost = async () => {
     setIsLoading(true);
+
     if (!title || !content) {
       Alert.alert('제목과 내용을 입력해주세요.');
+      setIsLoading(false);
       return;
     }
+
     if (images.length === 0) {
       Alert.alert('최소 한 장의 이미지를 업로드해주세요.');
+      setIsLoading(false);
+      return;
     }
 
     try {
+      // 1. 이미지 업로드
       const imageUrls = await Promise.all(
         images.map(uri => uploadImageToStorage(uri)),
       );
 
+      // 2. 태그 파싱 (#a #b -> ["a","b"])
+      const parsedTags = tags
+        .split(' ')
+        .map(tag => tag.replace('#', '').trim())
+        .filter(Boolean);
 
+      // 3. 게시글 저장
+      const { error } = await supabase.from('posts').insert([
+        {
+          title,
+          content,
+          tags: parsedTags,
+          image_urls: imageUrls,
+        },
+      ]);
 
+      if (error) throw error;
+
+      // 4. 초기화
       setTitle('');
       setContent('');
       setTags('');
       setImages([]);
+
       navigation.goBack();
     } catch (err) {
       console.log('Save post error:', err);
+      Alert.alert('저장 실패');
     } finally {
       setIsLoading(false);
     }
   };
+
 
   return (
     <Background>
@@ -140,18 +193,20 @@ const PostWrite = () => {
             </ImageBtn>
           )}
 
-          {images.map((item, index) => {
-            return (
-              <PostImage source={{ uri: item }} key={index}>
-                <DelBtn
-                  onPress={() =>
-                    setImages(prev => prev.filter(img => img !== item))
-                  }>
-                  <Icon source={require('../Image/ic_x_circle_white.png')} />
-                </DelBtn>
-              </PostImage>
-            );
-          })}
+          <View style={{ height: 120, flexDirection: 'row', alignItems: 'center' }}>
+            {images.map((item, index) => {
+              return (
+                <PostImage source={{ uri: item }} key={index}>
+                  <DelBtn
+                    onPress={() =>
+                      setImages(prev => prev.filter(img => img !== item))
+                    }>
+                    <Icon source={require('../Image/ic_x_circle_white.png')} />
+                  </DelBtn>
+                </PostImage>
+              );
+            })}
+          </View>
         </ScrollView>
 
         <SubmitBtn onPress={savePost} disabled={isLoading}>
@@ -203,8 +258,6 @@ const DelBtn = styled.TouchableOpacity`
 const PostImage = styled.ImageBackground`
   width: 100px;
   height: 100px;
-  border-radius: 8px;
-  overflow: hidden;
   margin-right: 10px;
 `;
 

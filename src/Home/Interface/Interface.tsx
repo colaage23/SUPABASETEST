@@ -1,9 +1,8 @@
 export interface PostListItem {
-  email: string;
-  userName: string;
+  id: string;
   title: string;
   content: string;
-  createdAt: string;
+  created_at: string;
   tag: string[];
   viewCount: number;
   thumbnail: string;
